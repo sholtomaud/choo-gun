@@ -2,12 +2,16 @@ const mutate = require('xtend/mutable')
 const cherrypick = require('cherrypick')
 const Gun = require('gun')
 require('gun/lib/unset')
-const gun = Gun()
+
+const arrayToObject = (arr, keyField) =>
+  Object.assign({}, ...arr.map(item => ({[item[keyField]]: item})))
 
 module.exports = persist
 
 function persist (opts) {
   opts = opts || {}
+
+  let gun = Gun(opts.URL);
 
   var name = opts.name || 'choo-persist'
   var filter = opts.filter
@@ -30,14 +34,16 @@ function persist (opts) {
     })
 
     function listener (eventName, data) {
+      console.log('eventN',eventName);
+      console.log('data',data);
       var savedState = filter ? filter(state) : state
       var cherryState = cherrypick(savedState, true, '_ events href params query route _handler');
       try {
-        ( cherryState.constructor === Array ) ?
-          cherryState.forEach(function(item){
-            gun.get(name).get('state').set(item)
-          })
-        : gun.get(name).get('state').put(cherryState)
+        Object.entries(cherryState).forEach(([key, value]) => {
+          ( cherryState[key].constructor === Array ) ?
+            gun.get(name).get('state').get(key).put( arrayToObject(cherryState[key],'_id') )
+          : gun.get(name).get('state').get(key).put(cherryState[key])
+        })
       } catch (e) {
         bus.removeListener('*', listener)
         bus.emit('log:warn', 'Could not set item to localStorage ' + name)
