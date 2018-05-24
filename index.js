@@ -17,7 +17,7 @@ function persist (opts) {
   var filter = opts.filter
 
   return function (state, bus) {
-    gun.get(name).get('state').on(value => {
+    gun.get(name).get('state').once(value => {
       mutate(state, value);
     })
 
